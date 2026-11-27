@@ -1,5 +1,8 @@
 import base64
+import gzip
 import sqlite3
+import shutil
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -18,14 +21,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "airtel.db"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = PROJECT_ROOT / "data" / "raw" / "airtel.db"
+DB_GZ_PATH = PROJECT_ROOT / "data" / "raw" / "airtel.db.gz"
+
 if not DB_PATH.exists():
-    # Also support running app.py from the project root/dashboard folder.
     candidates = [
-        Path.cwd() / "data" / "raw" / "airtel.db",
-        Path(__file__).resolve().parent / "data" / "raw" / "airtel.db",
+        DB_GZ_PATH,
+        Path.cwd() / "data" / "raw" / "airtel.db.gz",
+        Path(__file__).resolve().parent / "data" / "raw" / "airtel.db.gz",
     ]
-    DB_PATH = next((p for p in candidates if p.exists()), DB_PATH)
+    compressed_db = next((path for path in candidates if path.exists()), None)
+    if compressed_db is not None:
+        try:
+            extracted_db = DB_PATH
+            extracted_db.parent.mkdir(parents=True, exist_ok=True)
+            with gzip.open(compressed_db, "rb") as source, extracted_db.open("wb") as destination:
+                shutil.copyfileobj(source, destination)
+        except (OSError, gzip.BadGzipFile):
+            try:
+                extracted_db = Path(tempfile.gettempdir()) / "airtel.db"
+                with gzip.open(compressed_db, "rb") as source, extracted_db.open("wb") as destination:
+                    shutil.copyfileobj(source, destination)
+            except (OSError, gzip.BadGzipFile):
+                extracted_db = DB_PATH
+        DB_PATH = extracted_db
 
 AIRTEL_LOGO_B64 = ""
 
