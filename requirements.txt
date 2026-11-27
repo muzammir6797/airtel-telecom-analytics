@@ -1,0 +1,8 @@
+
+streamlit
+plotly
+pandas>=2.1,<3
+openpyxl
+scipy
+statsmodels
+jupyter
